@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Laboratório Q-Learning: Dino</title>
+    <meta
+      name="description"
+      content="Aplicação didática interativa em HTML, CSS e JS para ensinar Aprendizagem por Reforço (Q-Learning) com o jogo do dinossauro, visualização de estados e memória Q em tempo real."
+    />
+    <meta property="og:title" content="Laboratório Q-Learning: Dino" />
+    <meta
+      property="og:description"
+      content="Aplicação didática interativa em HTML, CSS e JS para ensinar Aprendizagem por Reforço (Q-Learning) com o jogo do dinossauro, visualização de estados e memória Q em tempo real."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body id="topo">
+    <header class="topbar">
+      <a href="#topo" class="brand-wordmark">Laboratório Q-Learning</a>
+
+      <nav class="top-nav" aria-label="Navegação principal">
+        <a href="#simulacao" class="nav-link">Simulação</a>
+        <a href="#tabela-q" class="nav-link">Tabela Q</a>
+        <a href="#estados" class="nav-link">Estados</a>
+        <a href="#equacao" class="nav-link">Equação</a>
+      </nav>
+
+      <div class="topbar-action">
+        <button id="btn-pretrain" type="button" class="btn btn-primary">
+          Treinar +50 Episódios
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="intro-header" aria-labelledby="page-title">
+        <div class="intro-copy">
+          <h1 id="page-title">Aprendizagem por Reforço com o Jogo do Dinossauro</h1>
+          <p class="intro-subtitle">
+            O agente possui apenas duas ações: correr e saltar. Acompanhe como ele discretiza o ambiente em estados e preenche a Tabela Q através de tentativa, erro e recompensas.
+          </p>
+        </div>
+
+        <div class="telemetry-strip" aria-live="polite">
+          <span class="telemetry-item">Episódio <strong id="stat-episode" class="mono">1</strong></span>
+          <span class="telemetry-sep" aria-hidden="true">·</span>
+          <span class="telemetry-item">Pontuação <strong id="stat-score" class="mono">0</strong></span>
+          <span class="telemetry-sep" aria-hidden="true">·</span>
+          <span class="telemetry-item">Recorde <strong id="stat-best" class="mono">0</strong></span>
+          <span class="telemetry-sep" aria-hidden="true">·</span>
+          <span class="telemetry-item">Exploração (ε) <strong id="stat-epsilon" class="mono">85.0%</strong></span>
+        </div>
+      </section>
+
+      <section id="simulacao" class="sandbox-grid" aria-label="Ambiente de simulação e memória do agente">
+        <!-- Coluna Esquerda: Palco da Simulação, Bellman e Curva de Aprendizado -->
+        <div class="sandbox-stage-col">
+          <div class="panel stage-panel">
+            <div class="stage-toolbar">
+              <div class="toolbar-group" role="group" aria-label="Controles de execução">
+                <button id="btn-toggle-run" type="button" class="btn btn-accent">
+                  Pausar
+                </button>
+                <button id="btn-step" type="button" class="btn btn-secondary" title="Avançar uma decisão do agente">
+                  Passo
+                </button>
+                <button id="btn-reset-ep" type="button" class="btn btn-secondary">
+                  Reiniciar Episódio
+                </button>
+              </div>
+
+              <div class="toolbar-group segmented-control" role="group" aria-label="Modo de controle">
+                <button id="mode-agent" type="button" class="seg-btn active" data-mode="agent">
+                  Agente Q-Learning
+                </button>
+                <button id="mode-manual" type="button" class="seg-btn" data-mode="manual">
+                  Manual (Espaço)
+                </button>
+              </div>
+
+              <div class="toolbar-group segmented-control" role="group" aria-label="Velocidade da simulação">
+                <button type="button" class="seg-btn speed-btn active" data-speed="1">1×</button>
+                <button type="button" class="seg-btn speed-btn" data-speed="3">3×</button>
+                <button type="button" class="seg-btn speed-btn" data-speed="10">10×</button>
+                <button type="button" class="seg-btn speed-btn" data-speed="30">30×</button>
+              </div>
+
+              <label class="toggle-check">
+                <input id="chk-sensors" type="checkbox" checked />
+                <span>Sensores de Estado</span>
+              </label>
+            </div>
+
+            <div class="canvas-wrapper">
+              <canvas id="dino-canvas" width="760" height="270" aria-label="Simulação do dinossauro correndo e saltando obstáculos"></canvas>
+            </div>
+
+            <div class="perception-strip" aria-live="polite">
+              <div class="perception-cell">
+                <span class="perception-label">Estado Atual (s)</span>
+                <strong id="hud-state-label" class="perception-value mono">LIVRE</strong>
+              </div>
+              <div class="perception-cell">
+                <span class="perception-label">Distância do Cacto</span>
+                <strong id="hud-distance" class="perception-value mono">—</strong>
+              </div>
+              <div class="perception-cell">
+                <span class="perception-label">Tipo de Obstáculo</span>
+                <strong id="hud-obstacle" class="perception-value">Nenhum próximo</strong>
+              </div>
+              <div class="perception-cell">
+                <span class="perception-label">Ação Escolhida</span>
+                <strong id="hud-action" class="perception-value">→ Correr</strong>
+                <span id="hud-policy-mode" class="perception-sub">Exploração</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel bellman-panel">
+            <div class="panel-header">
+              <h2>Última Atualização na Memória (Equação de Bellman)</h2>
+              <span id="bellman-delta" class="bellman-delta mono">Aguardando atualização</span>
+            </div>
+            <div class="bellman-formula-box">
+              <div class="formula-symbolic mono">
+                Q(s, a) ← Q(s, a) + α · [ R + γ · max Q(s′, a′) − Q(s, a) ]
+              </div>
+              <div id="bellman-calc" class="formula-numeric mono">
+                Execute a simulação para acompanhar cada cálculo de atualização da Tabela Q em tempo real.
+              </div>
+            </div>
+          </div>
+
+          <div class="panel chart-panel">
+            <div class="panel-header">
+              <h2>Evolução da Pontuação por Episódio</h2>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-swatch swatch-raw"></span>Episódio</span>
+                <span class="legend-item"><span class="legend-swatch swatch-avg"></span>Média Móvel (10 ep.)</span>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="learning-chart" width="760" height="190" aria-label="Gráfico de pontuação ao longo dos episódios"></canvas>
+              <div id="chart-tooltip" class="chart-tooltip hidden" role="status"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna Direita: Tabela Q em Tempo Real + Hiperparâmetros -->
+        <aside id="tabela-q" class="sandbox-memory-col" aria-label="Memória Q-Learning e parâmetros">
+          <div class="panel qtable-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Memória do Agente (Tabela Q)</h2>
+                <p class="panel-subtitle">9 estados discretos · Valores atualizados ao vivo</p>
+              </div>
+              <button id="btn-reset-q" type="button" class="btn btn-danger-ghost">
+                Zerar Memória
+              </button>
+            </div>
+
+            <div class="qtable-scroll">
+              <table class="qtable">
+                <thead>
+                  <tr>
+                    <th scope="col">Estado (s)</th>
+                    <th scope="col" class="num-col">Q(Correr)</th>
+                    <th scope="col" class="num-col">Q(Saltar)</th>
+                    <th scope="col">Melhor Política</th>
+                  </tr>
+                </thead>
+                <tbody id="qtable-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel controls-panel">
+            <div class="panel-header">
+              <h2>Parâmetros de Aprendizado</h2>
+            </div>
+
+            <div class="sliders-stack">
+              <div class="slider-field">
+                <div class="slider-top">
+                  <label for="slider-alpha">Taxa de Aprendizado (α)</label>
+                  <output id="val-alpha" for="slider-alpha" class="mono">0.25</output>
+                </div>
+                <input id="slider-alpha" type="range" min="0.05" max="0.80" step="0.05" value="0.25" />
+                <p class="slider-hint">Define o peso das experiências novas sobre o valor antigo na memória.</p>
+              </div>
+
+              <div class="slider-field">
+                <div class="slider-top">
+                  <label for="slider-gamma">Fator de Desconto (γ)</label>
+                  <output id="val-gamma" for="slider-gamma" class="mono">0.90</output>
+                </div>
+                <input id="slider-gamma" type="range" min="0.50" max="0.99" step="0.01" value="0.90" />
+                <p class="slider-hint">Importância das recompensas futuras em comparação com o ganho imediato.</p>
+              </div>
+
+              <div class="slider-field">
+                <div class="slider-top">
+                  <label for="slider-epsilon">Taxa de Exploração (ε)</label>
+                  <output id="val-epsilon" for="slider-epsilon" class="mono">0.85</output>
+                </div>
+                <input id="slider-epsilon" type="range" min="0.00" max="1.00" step="0.01" value="0.85" />
+                <p class="slider-hint">Probabilidade de testar uma ação aleatória em vez de seguir a Tabela Q.</p>
+              </div>
+
+              <label class="toggle-check decay-check">
+                <input id="chk-decay" type="checkbox" checked />
+                <span>Reduzir ε automaticamente a cada episódio (decaimento ×0.92 até 0.05)</span>
+              </label>
+            </div>
+
+            <div class="rewards-summary">
+              <h3>Sistema de Recompensas (R)</h3>
+              <dl class="reward-list">
+                <div class="reward-row">
+                  <dt>Correr em segurança</dt>
+                  <dd class="mono val-pos">+0.2</dd>
+                </div>
+                <div class="reward-row">
+                  <dt>Iniciar salto (custo energético)</dt>
+                  <dd class="mono val-neg">−2.0</dd>
+                </div>
+                <div class="reward-row">
+                  <dt>Superar obstáculo</dt>
+                  <dd class="mono val-pos">+20.0</dd>
+                </div>
+                <div class="reward-row">
+                  <dt>Colisão com cacto</dt>
+                  <dd class="mono val-neg">−100.0</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Seção Didática: Espaço de Estados -->
+      <section id="estados" class="didactic-section" aria-labelledby="states-heading">
+        <div class="section-heading-row">
+          <div>
+            <h2 id="states-heading">Espaço de Estados (S): Como o Agente Discretiza o Jogo</h2>
+            <p class="section-desc">
+              Para caber em uma Tabela Q legível, a posição contínua em pixels é convertida em 9 estados combinando a faixa de distância até o próximo cacto e sua altura. Clique ou passe o cursor para destacar na tabela.
+            </p>
+          </div>
+        </div>
+
+        <div id="state-cards-grid" class="state-cards-grid"></div>
+      </section>
+
+      <!-- Seção Didática: Como funciona o Q-Learning -->
+      <section id="equacao" class="didactic-section" aria-labelledby="algo-heading">
+        <div class="section-heading-row">
+          <div>
+            <h2 id="algo-heading">Ciclo do Algoritmo Q-Learning</h2>
+            <p class="section-desc">
+              O dinossauro não recebe regras programadas sobre quando saltar. Ele descobre a política ótima repetindo este ciclo a cada instante de decisão.
+            </p>
+          </div>
+        </div>
+
+        <div class="steps-grid">
+          <article class="step-card">
+            <span class="step-index mono">01</span>
+            <h3>Observação do Estado</h3>
+            <p>
+              Quando está no chão, o agente mede a distância até o próximo obstáculo e identifica se é um cacto baixo ou alto/duplo, formando o estado atual <strong>s</strong>.
+            </p>
+          </article>
+
+          <article class="step-card">
+            <span class="step-index mono">02</span>
+            <h3>Exploração vs. Explotação</h3>
+            <p>
+              Com probabilidade <strong>ε</strong>, o agente escolhe uma ação aleatória para explorar. Caso contrário, consulta a Tabela Q e escolhe a ação com maior valor esperado.
+            </p>
+          </article>
+
+          <article class="step-card">
+            <span class="step-index mono">03</span>
+            <h3>Ação e Recompensa</h3>
+            <p>
+              Ao escolher <strong>Saltar</strong>, o agente executa o arco completo do pulo até tocar o solo ou colidir. Ele acumula <strong>+20</strong> se ultrapassar o cacto ou <strong>−100</strong> se bater.
+            </p>
+          </article>
+
+          <article class="step-card">
+            <span class="step-index mono">04</span>
+            <h3>Atualização na Memória Q</h3>
+            <p>
+              Com a recompensa <strong>R</strong> e o próximo estado <strong>s′</strong>, a equação de Bellman ajusta o valor de <strong>Q(s, a)</strong> na direção do retorno real obtido.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Laboratório Q-Learning · Construído em HTML, CSS e JavaScript puro para o ensino de Aprendizagem por Reforço.</p>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

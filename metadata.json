@@ -1,0 +1,6 @@
+{
+  "name": "Laboratório Q-Learning: Dino",
+  "description": "Aplicação didática interativa em HTML, CSS e JS para ensinar Aprendizagem por Reforço (Q-Learning) com o jogo do dinossauro, visualização de estados e memória Q em tempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
